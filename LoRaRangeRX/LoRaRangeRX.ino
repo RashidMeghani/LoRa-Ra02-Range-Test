@@ -12,7 +12,7 @@
 //
 // Wiring (Ra-02 is 3.3 V ONLY -- see README.md for level shifting/power):
 //   Ra-02 NSS  -> D10      Ra-02 MOSI -> D11      Ra-02 SCK -> D13
-//   Ra-02 MISO -> D12      Ra-02 RST  -> A0       Ra-02 DIO0 -> A1
+//   Ra-02 MISO -> D12      Ra-02 RST  -> D8       Ra-02 DIO0 -> D9
 //   Ra-02 3.3V -> external 3.3 V regulator (NOT the Nano's 3V3 pin)
 //   OLED SDA -> A4   OLED SCL -> A5   OLED VCC -> 5V   OLED GND -> GND
 //   Optional active buzzer or LED on D4: short beep per received packet, so
@@ -32,8 +32,8 @@
 
 // ---- Pins ----------------------------------------------------------------
 #define PIN_LORA_NSS     10
-#define PIN_LORA_RST     A0
-#define PIN_LORA_DIO0    A1      // polled, so no interrupt pin needed
+#define PIN_LORA_RST     8
+#define PIN_LORA_DIO0    9       // polled, so no interrupt pin needed
 #define PIN_BEEP         4
 
 #define BEEP_MS          40

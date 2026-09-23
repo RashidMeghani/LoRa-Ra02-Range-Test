@@ -35,12 +35,12 @@ Power: 2S Li-ion/LiPo pack (8.4 V full, ~6.4 V empty).
    Nano D10 ──[1k]──┬──► Ra-02 NSS         each divider:
    Nano D13 ──[1k]──┬──► Ra-02 SCK            5 V ─[1k]─┬─► 3.3 V pin
    Nano D11 ──[1k]──┬──► Ra-02 MOSI                     [2k]  (or 2k2)
-   Nano A0  ──[1k]──┬──► Ra-02 RST                       │
+   Nano D8  ──[1k]──┬──► Ra-02 RST                       │
                   [2k] (to GND on each)                 GND
 
  Ra-02 → Nano (3.3 V into Nano is fine, wire direct)
    Ra-02 MISO ─────────► Nano D12
-   Ra-02 DIO0 ─────────► Nano A1
+   Ra-02 DIO0 ─────────► Nano D9
 
  OLED (RX only, 4-pin I2C module)
    OLED SDA ──► Nano A4      OLED SCL ──► Nano A5
