@@ -1,6 +1,6 @@
 // LoRa Ra-02 range test -- TRANSMITTER
 // Board: Arduino Nano (ATmega328P) + AI-Thinker Ra-02 (SX1278, 433 MHz)
-// Library: "LoRa" by Sandeep Mistry (v0.8.0+), install via Library Manager.
+// Library: "LoRa" by Sandeep Mistry (v0.8.0+), pulled in by platformio.ini.
 //
 // Sends a small numbered packet every TX_INTERVAL_MS using the longest-range
 // LoRa settings (SF12 / 125 kHz / CR 4/8 / +20 dBm on PA_BOOST).
@@ -15,6 +15,7 @@
 //
 // NEVER power the Ra-02 and transmit without the antenna connected.
 
+#include <Arduino.h>
 #include <SPI.h>
 #include <LoRa.h>
 

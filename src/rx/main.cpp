@@ -1,7 +1,7 @@
 // LoRa Ra-02 range test -- RECEIVER with 0.96" OLED
 // Board: Arduino Nano (ATmega328P) + AI-Thinker Ra-02 (SX1278, 433 MHz)
 //        + 0.96" SSD1306 128x64 I2C OLED
-// Libraries (Library Manager):
+// Libraries (pulled in by platformio.ini):
 //   "LoRa" by Sandeep Mistry (v0.8.0+)
 //   "U8g2" by oliver (uses the buffer-free U8x8 text mode: the Nano only has
 //    2 KB RAM, so a full-frame-buffer OLED library would leave too little)
@@ -18,6 +18,7 @@
 //   Optional active buzzer or LED on D4: short beep per received packet, so
 //   you can walk away and hear when packets stop arriving.
 
+#include <Arduino.h>
 #include <SPI.h>
 #include <LoRa.h>
 #include <U8x8lib.h>

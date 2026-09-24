@@ -1,14 +1,33 @@
 # LoRa Ra-02 maximum-range test
 
-Two stand-alone Arduino IDE sketches:
+A PlatformIO project (VS Code) with two firmwares:
 
-| Sketch | Hardware |
-|---|---|
-| `LoRaRangeTX/` | Arduino Nano + Ra-02 (+ optional LED on D4) |
-| `LoRaRangeRX/` | Arduino Nano + Ra-02 + 0.96" SSD1306 I2C OLED (+ optional buzzer on D4) |
+| Environment | Source | Hardware |
+|---|---|---|
+| `tx` | `src/tx/main.cpp` | Arduino Nano + Ra-02 (+ optional LED on D4) |
+| `rx` | `src/rx/main.cpp` | Arduino Nano + Ra-02 + 0.96" SSD1306 I2C OLED (+ optional buzzer on D4) |
 
-Libraries (Arduino IDE -> Library Manager): **LoRa** by Sandeep Mistry
-(0.8.0 or newer) and **U8g2** by oliver (RX only).
+Libraries (**LoRa** by Sandeep Mistry, **U8g2**) are fetched automatically
+from `platformio.ini`.
+
+### Build and upload (VS Code + PlatformIO)
+
+1. Open this folder in VS Code (PlatformIO extension installed).
+2. Pick the environment in the status bar (`env:tx` or `env:rx`), plug in
+   that Nano, and click **Upload**. Or from the PlatformIO terminal:
+
+   ```
+   pio run -e tx -t upload     # transmitter Nano
+   pio run -e rx -t upload     # receiver Nano
+   pio device monitor          # 115200 baud
+   ```
+
+3. If upload fails with `stk500_getsync(): not in sync`, your Nano has the
+   new bootloader: change `board = nanoatmega328` to
+   `board = nanoatmega328new` in `platformio.ini`.
+
+Pin map (both boards): NSS D10, RST D8, DIO0 D9, SCK D13, MOSI D11,
+MISO D12. OLED (RX): SDA A4, SCL A5.
 
 Radio settings for maximum range (same `#define`s at the top of both
 sketches, they must match): 433 MHz, SF12, BW 125 kHz, CR 4/8, CRC on,
@@ -139,7 +158,7 @@ board is an equally good replacement.
 
 ## Using it
 
-1. Flash `LoRaRangeTX` to one Nano, `LoRaRangeRX` to the other.
+1. Upload env `tx` to one Nano and env `rx` to the other.
 2. Power both. The RX OLED shows `Waiting...` then, once packets arrive:
 
    ```
