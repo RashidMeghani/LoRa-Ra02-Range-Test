@@ -5,7 +5,7 @@ A PlatformIO project (VS Code) with two firmwares:
 | Environment | Source | Hardware |
 |---|---|---|
 | `tx` | `src/tx/main.cpp` | Arduino Nano + Ra-02 (+ optional LED on D4) |
-| `rx` | `src/rx/main.cpp` | Arduino Nano + Ra-02 + 0.96" SSD1306 I2C OLED (+ optional buzzer on D4) |
+| `rx` | `src/rx/main.cpp` | Arduino Nano + Ra-02 + 1.3" SH1106 I2C OLED (+ optional buzzer on D4) |
 
 Libraries (**LoRa** by Sandeep Mistry, **U8g2**) are fetched automatically
 from `platformio.ini`.
@@ -201,5 +201,5 @@ board is an equally good replacement.
 | TX LED fast-blinking / RX shows `LoRa init FAIL` | SPI wiring, dividers, or no 3.3 V at the Ra-02 |
 | Works on USB, resets on battery | Ra-02 powered from Nano 3V3, missing capacitors, or pack nearly flat |
 | Init OK but nothing received | `#define` settings differ between sketches, or antenna missing |
-| OLED blank | Wrong I2C address/controller — try `U8X8_SH1106_128X64_NONAME_HW_I2C` |
+| OLED blank or shifted/garbled | Wrong controller: 1.3" = `U8X8_SH1106_128X64_NONAME_HW_I2C`, 0.96" = `U8X8_SSD1306_128X64_NONAME_HW_I2C`. Also check the module's pin order (VCC/GND are swapped on some 1.3" boards) |
 | Very weak RSSI even at 1 m | Antenna for wrong band, or on the wrong pad |

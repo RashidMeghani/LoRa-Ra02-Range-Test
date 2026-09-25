@@ -1,6 +1,6 @@
-// LoRa Ra-02 range test -- RECEIVER with 0.96" OLED
+// LoRa Ra-02 range test -- RECEIVER with 1.3" OLED
 // Board: Arduino Nano (ATmega328P) + AI-Thinker Ra-02 (SX1278, 433 MHz)
-//        + 0.96" SSD1306 128x64 I2C OLED
+//        + 1.3" SH1106 128x64 I2C OLED
 // Libraries (pulled in by platformio.ini):
 //   "LoRa" by Sandeep Mistry (v0.8.0+)
 //   "U8g2" by oliver (uses the buffer-free U8x8 text mode: the Nano only has
@@ -40,9 +40,9 @@
 #define BEEP_MS          40
 #define SCREEN_REFRESH_MS 500
 
-// Most 0.96" modules are SSD1306. If yours shows garbage, it may be an SH1106:
-// use U8X8_SH1106_128X64_NONAME_HW_I2C instead.
-U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
+// 1.3" modules use the SH1106 controller. For a 0.96" (SSD1306) module use
+// U8X8_SSD1306_128X64_NONAME_HW_I2C instead.
+U8X8_SH1106_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 
 // Demodulation SNR floor per spreading factor (SX1278 datasheet), dB.
 // Link margin = measured SNR - floor. Near 0 dB the link is about to drop.
