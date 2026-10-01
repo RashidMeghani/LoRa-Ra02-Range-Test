@@ -1,6 +1,7 @@
 # LoRa Ra-02 maximum-range test
 
-A PlatformIO project (VS Code) with two firmwares:
+A PlatformIO project (VS Code). Two-way ping-pong firmware (`nodeA`, `nodeB`,
+see below) plus the original one-way test:
 
 | Environment | Source | Hardware |
 |---|---|---|
@@ -156,7 +157,35 @@ charges; it does **not** balance the cells or protect them, so keep the
 the library's 8 MHz SPI clock. A 4-channel TXS0108E / BSS138 level-shifter
 board is an equally good replacement.
 
-## Using it
+## Two-way test (ping-pong) — `nodeA` / `nodeB`
+
+Both boards identical: Nano + Ra-02 + 1.3" SH1106 OLED + active buzzer on D4,
+same wiring as above. Same source (`src/node/main.cpp`), two builds:
+
+- **nodeA** sends a PING every 5 s and waits up to 3 s after it for the reply.
+- **nodeB** answers every PING with a PONG.
+
+Only node A starts a transmission, so the radios never talk over each
+other. Every packet carries how strongly the sender heard the other node's
+last packet, so both screens show both directions:
+
+```
+ -97 dBm           <- how I hear the other node (big)
+SNR  7.5 M 27.5    <- my SNR and margin above the SF12 limit
+Rem -95 S  8.5     <- how the OTHER node hears me (RSSI, SNR)
+Tx42 Rx40          <- packets I sent / received
+Lost2 4.8%         <- A: PINGs with no reply, B: missed PINGs
+Min-110/-112       <- weakest: mine / other node's
+A Last 1s ago      <- node letter, time since last packet ("LOST" after 16 s)
+```
+
+Each received packet beeps. Serial CSV (115200):
+`ms,seq,rssi,snr,remRssi,remSnr,tx,rx,lost`.
+
+Upload `nodeA` to one board and `nodeB` to the other — never the same env
+on both.
+
+## Using it (one-way test: `tx` / `rx`)
 
 1. Upload env `tx` to one Nano and env `rx` to the other.
 2. Power both. The RX OLED shows `Waiting...` then, once packets arrive:
