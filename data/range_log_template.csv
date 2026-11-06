@@ -1,0 +1,8 @@
+distance_km,rssi_dbm,snr_db,sent,received,notes
+0.05,-60,10,20,20,bench test
+1,-85,9,20,20,
+5,-100,7,20,20,
+20,-112,2,20,19,
+40,-120,-3,20,17,
+60,-127,-8,20,12,
+80,-132,-14,20,6,example numbers - replace with yours

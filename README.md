@@ -35,6 +35,37 @@ sketches, they must match): 433 MHz, SF12, BW 125 kHz, CR 4/8, CRC on,
 private sync word 0x34, +20 dBm on PA_BOOST. The transmitter sends a 7-byte
 numbered packet every 3 s (~1.2 s airtime each).
 
+## Heltec WiFi LoRa 32 V2 (433 MHz) — no wiring needed
+
+The V2 has the ESP32, SX1276 radio and OLED on one board. Same ping-pong
+firmware, same packet format and radio settings as the Nano + Ra-02 nodes, so
+a Heltec can talk to a Ra-02 node (or two Heltecs to each other):
+
+```
+pio run -e heltecA -t upload   # node A, sends PINGs
+pio run -e heltecB -t upload   # node B, answers with PONGs
+pio device monitor             # 115200 baud, CSV log
+```
+
+- Attach a **433 MHz antenna before powering up**.
+- Set `-D LORA_TX_POWER=10` in `build_flags` (platformio.ini) if your
+  country's 433 MHz limit is lower than 20 dBm (EU: 10 dBm).
+- The on-board white LED blinks on every packet; GPIO13 can drive an optional
+  active buzzer.
+- The V2 comes in 433 and 868/915 MHz versions: buy/use the one matching
+  your antenna and the law.
+- This build has not been compiled by the author's CI container (blocked
+  PlatformIO downloads); run `pio run -e heltecA` once and report errors.
+
+## Tools and other docs
+
+- `tools/link_budget.py` — link margin, radio horizon, Fresnel clearance
+  (`python3 tools/link_budget.py --km 80 --mhz 433 --h1 100 --h2 100`).
+- `tools/plot_range.py` + `data/range_log_template.csv` — log and plot a
+  field test.
+- `docs/MESHCORE.md` — doing the same test with MeshCore firmware and the
+  phone app.
+
 ## Schematic (same for both boards, OLED only on RX)
 
 Power: 2S Li-ion/LiPo pack (8.4 V full, ~6.4 V empty).

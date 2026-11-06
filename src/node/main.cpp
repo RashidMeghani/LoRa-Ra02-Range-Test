@@ -10,7 +10,11 @@
 //   local  = how well I hear the other node
 //   remote = how well the other node hears me
 //
-// Wiring (both boards identical, Ra-02 is 3.3 V ONLY):
+// Also builds for the Heltec WiFi LoRa 32 V2 (ESP32 + SX1276 + 0.96" OLED,
+// all on board): envs "heltecA" / "heltecB" (-D HELTEC_V2). It uses the same
+// packet format and radio settings, so a Heltec can talk to a Ra-02 node.
+//
+// Wiring (Nano + Ra-02 build; both boards identical, Ra-02 is 3.3 V ONLY):
 //   Ra-02 NSS  -> D10 (divider)   Ra-02 MOSI -> D11 (divider)
 //   Ra-02 SCK  -> D13 (divider)   Ra-02 MISO -> D12 (direct)
 //   Ra-02 RST  -> D8  (divider)   Ra-02 DIO0 -> D9  (direct)
@@ -21,6 +25,9 @@
 #include <SPI.h>
 #include <LoRa.h>
 #include <U8x8lib.h>
+#ifdef HELTEC_V2
+#include <Wire.h>
+#endif
 
 #ifndef NODE_MASTER
 #define NODE_MASTER 0
@@ -33,7 +40,9 @@
 #define LORA_CR          8
 #define LORA_SYNC_WORD   0x34
 #define LORA_PREAMBLE    8
-#define LORA_TX_POWER    20
+#ifndef LORA_TX_POWER
+#define LORA_TX_POWER    20      // dBm; lower it to your country's legal limit
+#endif
 
 // ---- Timing (SF12 packet airtime is ~1.2 s) ------------------------------
 #define PING_INTERVAL_MS 5000UL  // node A: time between PINGs
@@ -41,10 +50,26 @@
 #define LINK_LOST_MS     (3 * PING_INTERVAL_MS + 1000UL)
 
 // ---- Pins ----------------------------------------------------------------
+#ifdef HELTEC_V2
+// Heltec WiFi LoRa 32 V2: radio and OLED are wired on the board.
+#define PIN_LORA_SCK     5
+#define PIN_LORA_MISO    19
+#define PIN_LORA_MOSI    27
+#define PIN_LORA_NSS     18
+#define PIN_LORA_RST     14
+#define PIN_LORA_DIO0    26
+#define PIN_OLED_SDA     4
+#define PIN_OLED_SCL     15
+#define PIN_OLED_RST     16
+#define PIN_VEXT         21      // LOW = power the OLED
+#define PIN_BEEP         13      // optional active buzzer (+) on GPIO13
+#define PIN_LED          25      // on-board white LED, blinks on every packet
+#else
 #define PIN_LORA_NSS     10
 #define PIN_LORA_RST     8
 #define PIN_LORA_DIO0    9       // polled, so no interrupt pin needed
 #define PIN_BEEP         4
+#endif
 
 #define BEEP_MS          40
 #define SCREEN_REFRESH_MS 500
@@ -58,7 +83,11 @@
 
 // 1.3" modules use the SH1106 controller. For a 0.96" (SSD1306) module use
 // U8X8_SSD1306_128X64_NONAME_HW_I2C instead.
+#ifdef HELTEC_V2
+U8X8_SSD1306_128X64_NONAME_HW_I2C oled(PIN_OLED_RST, PIN_OLED_SCL, PIN_OLED_SDA);
+#else
 U8X8_SH1106_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
+#endif
 
 // Demodulation SNR floor per spreading factor (SX1278 datasheet), dB.
 const int8_t SNR_FLOOR[] = { -5, -7, -10, -12, -15, -17, -20 };  // SF6..SF12
@@ -66,9 +95,10 @@ const int8_t SNR_FLOOR[] = { -5, -7, -10, -12, -15, -17, -20 };  // SF6..SF12
 
 const char NODE_NAME = NODE_MASTER ? 'A' : 'B';
 
-uint32_t txCount = 0;      // packets I sent
-uint32_t rxCount = 0;      // packets I received from the other node
-uint32_t lostCount = 0;    // A: PINGs with no PONG; B: gaps in PING seq
+// unsigned long (not uint32_t) so the "%lu" formats are right on AVR and ESP32
+unsigned long txCount = 0;    // packets I sent
+unsigned long rxCount = 0;    // packets I received from the other node
+unsigned long lostCount = 0;  // A: PINGs with no PONG; B: gaps in PING seq
 uint32_t lastSeq = 0;
 
 bool     haveRx = false;   // heard the other node at least once
@@ -97,6 +127,9 @@ unsigned long pingEndMs = 0;
 
 void beep() {
   digitalWrite(PIN_BEEP, HIGH);
+#ifdef HELTEC_V2
+  digitalWrite(PIN_LED, HIGH);
+#endif
   beepOffMs = millis() + BEEP_MS;
   if (beepOffMs == 0) beepOffMs = 1;
 }
@@ -174,7 +207,7 @@ void drawScreen() {
   snprintf(line, sizeof(line), "Tx%lu Rx%lu", txCount, rxCount);
   printPadded(4, line);
 
-  uint32_t total = rxCount + lostCount;
+  unsigned long total = rxCount + lostCount;
   float loss = total ? (100.0 * lostCount / total) : 0;
   dtostrf(loss, 4, 1, f1);
   snprintf(line, sizeof(line), "Lost%lu %s%%", lostCount, f1);
@@ -259,6 +292,12 @@ void handleRx() {
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_BEEP, OUTPUT);
+#ifdef HELTEC_V2
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_VEXT, OUTPUT);
+  digitalWrite(PIN_VEXT, LOW);          // power the OLED
+  delay(50);
+#endif
 
   oled.setBusClock(400000);
   oled.begin();
@@ -267,6 +306,9 @@ void setup() {
   oled.drawString(0, 0, NODE_MASTER ? "LoRa 2-way: A" : "LoRa 2-way: B");
   oled.drawString(0, 1, NODE_MASTER ? "(sends PING)" : "(answers PONG)");
 
+#ifdef HELTEC_V2
+  SPI.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_NSS);
+#endif
   LoRa.setPins(PIN_LORA_NSS, PIN_LORA_RST, PIN_LORA_DIO0);
   if (!LoRa.begin(LORA_FREQ)) {
     oled.drawString(0, 3, "LoRa init FAIL");
@@ -314,6 +356,9 @@ void loop() {
 
   if (beepOffMs && (long)(millis() - beepOffMs) >= 0) {
     digitalWrite(PIN_BEEP, LOW);
+#ifdef HELTEC_V2
+    digitalWrite(PIN_LED, LOW);
+#endif
     beepOffMs = 0;
   }
 
