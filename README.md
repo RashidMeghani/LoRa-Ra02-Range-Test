@@ -60,6 +60,37 @@ pio device monitor             # 115200 baud, CSV log
 - This build has not been compiled by the author's CI container (blocked
   PlatformIO downloads); run `pio run -e heltecA` once and report errors.
 
+## Three-board test with a phone page — `heltecGround`
+
+```
+ phone --WiFi--> GROUND --LoRa--> MAST (heltecA, ~100 m up) --LoRa--> FAR (heltecB, ~80 km)
+ phone <--WiFi-- GROUND <--LoRa-- MAST <------------ LoRa reply ------- FAR
+```
+
+Upload `heltecA` to the mast board, `heltecB` to the far board and
+`heltecGround` to the third board:
+
+```
+pio run -e heltecGround -t upload
+```
+
+1. Power the ground board. On your phone join the WiFi **LoRa-Range**
+   (password **loratest1**) and open **http://192.168.4.1** (turn mobile data
+   off if the phone drops the WiFi for having no internet).
+2. The mast pings the far node every 5 s and reports each result to the
+   ground node. The page shows RSSI/SNR in both directions, the margin,
+   lost pings and the last 15 results. **Ping now** asks the mast to ping
+   immediately.
+3. The ground board runs at 2 dBm (`-D LORA_TX_POWER=2` in `platformio.ini`)
+   because it sits next to the mast. Keep the ground board at least a few
+   metres from the mast board.
+4. Radios are half-duplex: a "Ping now" sent while the mast is in the middle
+   of a ping cycle can be missed. If the page says the request was not
+   answered, press it again.
+5. Not compiled or field-tested yet. Report any build error or odd behaviour.
+
+Shared radio settings and packet types are in `include/radio_config.h`.
+
 ## Tools and other docs
 
 - `tools/link_budget.py` — link margin, radio horizon, Fresnel clearance

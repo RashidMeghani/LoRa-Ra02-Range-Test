@@ -35,16 +35,8 @@
 #define NODE_MASTER 0
 #endif
 
-// ---- Radio settings: MUST be identical on both nodes ---------------------
-#define LORA_FREQ        433E6
-#define LORA_SF          12
-#define LORA_BW          125E3
-#define LORA_CR          8
-#define LORA_SYNC_WORD   0x34
-#define LORA_PREAMBLE    8
-#ifndef LORA_TX_POWER
-#define LORA_TX_POWER    20      // dBm; lower it to your country's legal limit
-#endif
+// ---- Radio settings and packet types: include/radio_config.h ----------
+#include "radio_config.h"
 
 // ---- Timing (SF12 packet airtime is ~1.2 s) ------------------------------
 #define PING_INTERVAL_MS 5000UL  // node A: time between PINGs
@@ -81,9 +73,6 @@
 // ---- Packet: 'R' '2' type seq(4, LE) rssi(1) snr(1) = 9 bytes ------------
 //   rssi byte: -RSSI of the last packet heard from the other node, 0 = none
 //   snr  byte: SNR * 4 as int8
-#define PKT_LEN          9
-#define PKT_PING         1
-#define PKT_PONG         2
 
 // 1.3" modules use the SH1106 controller. For a 0.96" (SSD1306) module use
 // U8X8_SSD1306_128X64_NONAME_HW_I2C instead.
@@ -122,6 +111,9 @@ unsigned long lastScreenMs = 0;
 unsigned long beepOffMs = 0;
 
 // Node A only
+bool          cmdPing = false;       // ground node asked for a ping now
+bool          reportPending = false; // send a report to the ground node
+bool          reportOk = false;
 bool          awaitingPong = false;
 uint32_t      pingSeq = 0;
 unsigned long pingStartMs = 0;
@@ -229,6 +221,26 @@ void drawScreen() {
   printPadded(7, line);
 }
 
+// Node A: tell the ground node how the last ping went.
+void sendReport(uint32_t seq, bool ok) {
+  uint8_t flags = (ok ? 1 : 0) | (haveRemote ? 2 : 0) | (haveRx ? 4 : 0);
+  LoRa.beginPacket();
+  LoRa.write('R');
+  LoRa.write('2');
+  LoRa.write(PKT_REPORT);
+  for (uint8_t i = 0; i < 4; i++) LoRa.write((uint8_t)(seq >> (8 * i)));
+  LoRa.write(flags);
+  LoRa.write((uint8_t)constrain(-localRssi, 0, 255));
+  LoRa.write((uint8_t)(int8_t)constrain((int)lround(localSnr * 4), -128, 127));
+  LoRa.write((uint8_t)constrain(-remoteRssi, 0, 255));
+  LoRa.write((uint8_t)(int8_t)constrain((int)lround(remoteSnr * 4), -128, 127));
+  LoRa.write((uint8_t)txCount);
+  LoRa.write((uint8_t)(txCount >> 8));
+  LoRa.write((uint8_t)lostCount);
+  LoRa.write((uint8_t)(lostCount >> 8));
+  LoRa.endPacket();
+}
+
 void logCsv(uint32_t seq) {
   Serial.print(millis());       Serial.print(',');
   Serial.print(seq);            Serial.print(',');
@@ -258,8 +270,11 @@ void handleRx() {
 
   // Node A listens for PONGs to its current PING; node B for PINGs.
   if (NODE_MASTER) {
+    if (type == PKT_CMD_PING) { cmdPing = true; return; }
     if (type != PKT_PONG || !awaitingPong || seq != pingSeq) return;
     awaitingPong = false;
+    reportPending = true;
+    reportOk = true;
   } else {
     if (type != PKT_PING) return;
     if (haveRx && seq > lastSeq) lostCount += seq - lastSeq - 1;
@@ -388,9 +403,17 @@ void loop() {
     awaitingPong = false;
     lostCount++;
     reportValid = false;               // don't resend a stale reading
+    reportPending = true;
+    reportOk = false;
     Serial.print(F("no reply to PING ")); Serial.println(pingSeq);
   }
-  if (!awaitingPong && (pingSeq == 0 || millis() - pingStartMs >= PING_INTERVAL_MS)) {
+  if (reportPending) {                 // after the ping cycle is settled
+    reportPending = false;
+    sendReport(pingSeq, reportOk);
+  }
+  if (!awaitingPong && (pingSeq == 0 || cmdPing ||
+                        millis() - pingStartMs >= PING_INTERVAL_MS)) {
+    cmdPing = false;
     pingStartMs = millis();
     pingSeq++;
     sendPacket(PKT_PING, pingSeq);
