@@ -364,6 +364,18 @@ void loop() {
 
   if (millis() - lastScreenMs >= SCREEN_REFRESH_MS) {
     lastScreenMs = millis();
+#ifdef HELTEC_V2
+    // RF from the transmitter can upset the OLED's I2C lines and leave the
+    // panel switched off. Keep it awake, and fully re-initialise it now and then.
+    static unsigned long lastOledInitMs = 0;
+    if (millis() - lastOledInitMs >= 30000UL) {
+      lastOledInitMs = millis();
+      oled.initDisplay();
+      oled.setFont(u8x8_font_chroma48medium8_r);
+      oled.clear();
+    }
+    oled.setPowerSave(0);
+#endif
     drawScreen();
   }
 }
