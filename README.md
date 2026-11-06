@@ -50,6 +50,9 @@ pio device monitor             # 115200 baud, CSV log
 - Attach a **433 MHz antenna before powering up**.
 - Set `-D LORA_TX_POWER=10` in `build_flags` (platformio.ini) if your
   country's 433 MHz limit is lower than 20 dBm (EU: 10 dBm).
+- **Soft off:** hold the **PRG** button for 2 s; the screen says "Powering
+  off..." and the board goes into deep sleep. Release PRG, then press **RST**
+  to wake it. It is not a true power-off (unplug the battery for that).
 - The on-board white LED blinks on every packet; GPIO13 can drive an optional
   active buzzer.
 - The V2 comes in 433 and 868/915 MHz versions: buy/use the one matching

@@ -27,6 +27,8 @@
 #include <U8x8lib.h>
 #ifdef HELTEC_V2
 #include <Wire.h>
+#include <esp_sleep.h>
+#include <driver/gpio.h>
 #endif
 
 #ifndef NODE_MASTER
@@ -64,6 +66,8 @@
 #define PIN_VEXT         21      // LOW = power the OLED
 #define PIN_BEEP         13      // optional active buzzer (+) on GPIO13
 #define PIN_LED          25      // on-board white LED, blinks on every packet
+#define PIN_PRG          0       // PRG button, active LOW: hold 2 s = soft off
+#define OFF_HOLD_MS      2000UL
 #else
 #define PIN_LORA_NSS     10
 #define PIN_LORA_RST     8
@@ -289,11 +293,45 @@ void handleRx() {
   lastScreenMs = millis();
 }
 
+#ifdef HELTEC_V2
+// Hold PRG for OFF_HOLD_MS -> radio and OLED off, ESP32 in deep sleep.
+// Press RST to wake it (a full restart). Release PRG before pressing RST,
+// otherwise the board enters its upload (download) mode.
+void softOff() {
+  oled.clear();
+  oled.drawString(0, 2, "Powering off...");
+  oled.drawString(0, 4, "Release PRG.");
+  oled.drawString(0, 5, "RST = wake up");
+  delay(2500);
+  LoRa.sleep();
+  oled.setPowerSave(1);
+  digitalWrite(PIN_BEEP, LOW);
+  digitalWrite(PIN_LED, LOW);
+  digitalWrite(PIN_VEXT, HIGH);                  // cut power to the OLED
+  gpio_hold_en((gpio_num_t)PIN_VEXT);            // keep it cut during sleep
+  gpio_deep_sleep_hold_en();
+  esp_deep_sleep_start();                        // no wake source: only RST wakes it
+}
+
+void checkOffButton() {
+  static unsigned long pressedAt = 0;
+  if (digitalRead(PIN_PRG) == LOW) {
+    if (pressedAt == 0) pressedAt = millis();
+    else if (millis() - pressedAt >= OFF_HOLD_MS) softOff();
+  } else {
+    pressedAt = 0;
+  }
+}
+#endif
+
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_BEEP, OUTPUT);
 #ifdef HELTEC_V2
   pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_PRG, INPUT_PULLUP);
+  gpio_deep_sleep_hold_dis();
+  gpio_hold_dis((gpio_num_t)PIN_VEXT);
   pinMode(PIN_VEXT, OUTPUT);
   digitalWrite(PIN_VEXT, LOW);          // power the OLED
   delay(50);
@@ -337,6 +375,9 @@ void setup() {
 
 void loop() {
   handleRx();
+#ifdef HELTEC_V2
+  checkOffButton();
+#endif
 
 #if NODE_MASTER
   if (awaitingPong && millis() - pingEndMs > PONG_TIMEOUT_MS) {
