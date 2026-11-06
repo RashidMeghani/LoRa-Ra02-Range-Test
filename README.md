@@ -81,13 +81,15 @@ pio run -e heltecGround -t upload
    ground node. The page shows RSSI/SNR in both directions, the margin,
    lost pings and the last 15 results. **Ping now** asks the mast to ping
    immediately.
-3. The ground board runs at 2 dBm (`-D LORA_TX_POWER=2` in `platformio.ini`)
+3. All three boards have a soft off: hold **PRG** for 2 s, release, press
+   **RST** to wake it.
+4. The ground board runs at 2 dBm (`-D LORA_TX_POWER=2` in `platformio.ini`)
    because it sits next to the mast. Keep the ground board at least a few
    metres from the mast board.
-4. Radios are half-duplex: a "Ping now" sent while the mast is in the middle
+5. Radios are half-duplex: a "Ping now" sent while the mast is in the middle
    of a ping cycle can be missed. If the page says the request was not
    answered, press it again.
-5. Not compiled or field-tested yet. Report any build error or odd behaviour.
+6. Not compiled or field-tested yet. Report any build error or odd behaviour.
 
 Shared radio settings and packet types are in `include/radio_config.h`.
 

@@ -17,6 +17,8 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <esp_sleep.h>
+#include <driver/gpio.h>
 #include "radio_config.h"
 
 // ---- Heltec WiFi LoRa 32 V2 pins ----------------------------------------
@@ -31,6 +33,8 @@
 #define PIN_OLED_RST     16
 #define PIN_VEXT         21      // LOW = power the OLED
 #define PIN_LED          25
+#define PIN_PRG          0       // PRG button, active LOW: hold 2 s = soft off
+#define OFF_HOLD_MS      2000UL
 
 #define AP_SSID          "LoRa-Range"
 #define AP_PASS          "loratest1"     // at least 8 characters
@@ -265,9 +269,47 @@ void drawScreen() {
   printPadded(7, line);
 }
 
+// Hold PRG for OFF_HOLD_MS -> WiFi, radio and OLED off, ESP32 in deep sleep.
+// Press RST to wake it. Release PRG before pressing RST, otherwise the board
+// enters its upload (download) mode.
+void softOff() {
+  oled.clear();
+  oled.drawString(0, 2, "Powering off...");
+  oled.drawString(0, 4, "Release PRG.");
+  oled.drawString(0, 5, "RST = wake up");
+  delay(2500);
+  server.stop();
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_OFF);
+  LoRa.sleep();
+  oled.setPowerSave(1);
+  digitalWrite(PIN_LED, LOW);
+  digitalWrite(PIN_VEXT, HIGH);                  // cut power to the OLED
+  gpio_hold_en((gpio_num_t)PIN_VEXT);            // keep it cut during sleep
+  gpio_deep_sleep_hold_en();
+  esp_deep_sleep_start();                        // no wake source: only RST wakes it
+}
+
+// The loop can be busy (sending a command takes ~1.2 s), so an interrupt
+// records the moment PRG really went down.
+volatile unsigned long prgDownAt = 0;
+void IRAM_ATTR onPrgChange() {
+  if (digitalRead(PIN_PRG) == LOW) prgDownAt = millis() ? millis() : 1;
+  else prgDownAt = 0;
+}
+
+void checkOffButton() {
+  unsigned long t = prgDownAt;
+  if (t != 0 && digitalRead(PIN_PRG) == LOW && millis() - t >= OFF_HOLD_MS) softOff();
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_PRG, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_PRG), onPrgChange, CHANGE);
+  gpio_deep_sleep_hold_dis();
+  gpio_hold_dis((gpio_num_t)PIN_VEXT);
   pinMode(PIN_VEXT, OUTPUT);
   digitalWrite(PIN_VEXT, LOW);          // power the OLED
   delay(50);
@@ -313,6 +355,7 @@ void setup() {
 void loop() {
   server.handleClient();
   handleRx();
+  checkOffButton();
 
   if (pendingCmd) {
     pendingCmd = false;
