@@ -313,14 +313,17 @@ void softOff() {
   esp_deep_sleep_start();                        // no wake source: only RST wakes it
 }
 
+// The loop is blocked ~1.2 s while a packet is being sent, so poll-based hold
+// timing is late. An interrupt records the moment PRG really went down.
+volatile unsigned long prgDownAt = 0;
+void IRAM_ATTR onPrgChange() {
+  if (digitalRead(PIN_PRG) == LOW) prgDownAt = millis() ? millis() : 1;
+  else prgDownAt = 0;
+}
+
 void checkOffButton() {
-  static unsigned long pressedAt = 0;
-  if (digitalRead(PIN_PRG) == LOW) {
-    if (pressedAt == 0) pressedAt = millis();
-    else if (millis() - pressedAt >= OFF_HOLD_MS) softOff();
-  } else {
-    pressedAt = 0;
-  }
+  unsigned long t = prgDownAt;
+  if (t != 0 && digitalRead(PIN_PRG) == LOW && millis() - t >= OFF_HOLD_MS) softOff();
 }
 #endif
 
@@ -330,6 +333,7 @@ void setup() {
 #ifdef HELTEC_V2
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_PRG, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_PRG), onPrgChange, CHANGE);
   gpio_deep_sleep_hold_dis();
   gpio_hold_dis((gpio_num_t)PIN_VEXT);
   pinMode(PIN_VEXT, OUTPUT);
